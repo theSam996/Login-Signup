@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Auth Project</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* Tailwind gray-900 */
+        }
+        .spinner {
+            border-top-color: #3498db; /* A nice blue color */
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        /* Hide scrollbar for cleaner look */
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        html {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="text-gray-200 flex items-center justify-center min-h-screen">
+
+    <div class="container mx-auto p-4 max-w-md w-full">
+
+        <div id="loading-spinner" class="text-center">
+            <div class="spinner w-12 h-12 rounded-full border-4 border-gray-600 mx-auto"></div>
+            <p class="mt-4 text-lg">Loading...</p>
+        </div>
+
+        <div id="auth-section" class="hidden">
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full">
+                <h2 class="text-3xl font-bold mb-6 text-center text-white">Welcome</h2>
+                
+                <div id="error-message" class="bg-red-500/20 text-red-300 p-3 rounded-lg mb-4 text-center hidden"></div>
+                <div id="success-message" class="bg-green-500/20 text-green-300 p-3 rounded-lg mb-4 text-center hidden"></div>
+
+                <div class="space-y-4">
+                    <input type="email" id="email" placeholder="Email" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400">
+                    <input type="password" id="password" placeholder="Password" class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white placeholder-gray-400">
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-4 mt-6">
+                    <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">Login</button>
+                    <button id="signup-btn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">Sign Up</button>
+                </div>
+                
+                <div class="mt-6 text-center">
+                    <a href="#" id="forgot-password-link" class="text-sm text-blue-400 hover:underline">Forgot Password?</a>
+                </div>
+                
+                <div class="relative my-6">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-gray-600"></div>
+                    </div>
+                    <div class="relative flex justify-center text-sm">
+                        <span class="px-2 bg-gray-800 text-gray-400">Or continue with</span>
+                    </div>
+                </div>
+
+                <div>
+                    <button id="google-signin-btn" class="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-200 text-gray-800 font-bold py-3 px-4 rounded-lg transition duration-300">
+                        <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><defs><path id="a" d="M44.5 20H24v8.5h11.8C34.7 33.9 30.1 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.4-6.4C34.6 4.1 29.6 2 24 2 11.8 2 2 11.8 2 24s9.8 22 22 22c11 0 21-8 21-22 0-1.3-.2-2.7-.5-4z"/></defs><clipPath id="b"><use xlink:href="#a" overflow="visible"/></clipPath><path clip-path="url(#b)" fill="#FBBC05" d="M0 37V11l17 13z"/><path clip-path="url(#b)" fill="#EA4335" d="M0 11l17 13 7-6.1L48 14V0H0z"/><path clip-path="url(#b)" fill="#34A853" d="M0 37l30-23 7.9 1L48 0v48H0z"/><path clip-path="url(#b)" fill="#4285F4" d="M48 48L17 24l-4-3 35-10z"/></svg>
+                        <span>Sign in with Google</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="profile-section" class="hidden">
+            <div class="bg-gray-800 p-8 rounded-2xl shadow-2xl w-full text-center">
+                <h2 class="text-3xl font-bold mb-4 text-white">Profile</h2>
+                <img id="profile-pic" src="https://placehold.co/128x128/374151/E5E7EB?text=User" alt="Profile Picture" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-gray-600">
+                <p id="user-display-name" class="text-xl font-semibold text-white"></p>
+                <p id="user-email" class="text-gray-400 mb-6"></p>
+                <button id="logout-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">Logout</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+        import { 
+            getAuth, 
+            createUserWithEmailAndPassword, 
+            signInWithEmailAndPassword, 
+            onAuthStateChanged, 
+            signOut,
+            GoogleAuthProvider,
+            signInWithPopup,
+            sendPasswordResetEmail
+        } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
+
+        // VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
+        // --- IMPORTANT: PASTE YOUR FIREBASE CONFIGURATION OBJECT HERE ---
+        // VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
+        const firebaseConfig = {
+            apiKey: "AIzaSyACH7qRYpv-viM8KiOkzAWDcSby55vnNyI",
+            authDomain: "loginprofile-9aace.firebaseapp.com",
+            projectId: "loginprofile-9aace",
+            storageBucket: "loginprofile-9aace.firebasestorage.app",
+            messagingSenderId: "372740636189",
+            appId: "1:372740636189:web:afd4706b271de7800e50f4",
+            measurementId: "G-XMPN3SML5K"
+        };
+        // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        // --- END OF FIREBASE CONFIGURATION ---
+        // ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        try {
+            // Initialize Firebase
+            const app = initializeApp(firebaseConfig);
+            const auth = getAuth(app);
+            const provider = new GoogleAuthProvider();
+
+            // --- DOM Elements ---
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const authSection = document.getElementById('auth-section');
+            const profileSection = document.getElementById('profile-section');
+
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+
+            const loginBtn = document.getElementById('login-btn');
+            const signupBtn = document.getElementById('signup-btn');
+            const googleSigninBtn = document.getElementById('google-signin-btn');
+            const logoutBtn = document.getElementById('logout-btn');
+            const forgotPasswordLink = document.getElementById('forgot-password-link');
+
+            const profilePic = document.getElementById('profile-pic');
+            const userDisplayName = document.getElementById('user-display-name');
+            const userEmail = document.getElementById('user-email');
+
+            const errorMessageDiv = document.getElementById('error-message');
+            const successMessageDiv = document.getElementById('success-message');
+            
+            // --- Helper Functions ---
+            const showPage = (page) => {
+                loadingSpinner.classList.add('hidden');
+                authSection.classList.add('hidden');
+                profileSection.classList.add('hidden');
+                
+                if (page === 'auth') {
+                    authSection.classList.remove('hidden');
+                } else if (page === 'profile') {
+                    profileSection.classList.remove('hidden');
+                } else if (page === 'error') {
+                    // In case of a critical error, we can show an error message
+                    // instead of the login form.
+                    authSection.classList.remove('hidden');
+                    document.querySelector('#auth-section .space-y-4').classList.add('hidden');
+                    document.querySelector('#auth-section .flex').classList.add('hidden');
+                     document.querySelector('#auth-section .relative').classList.add('hidden');
+                      document.querySelector('#google-signin-btn').classList.add('hidden');
+                }
+                else {
+                    loadingSpinner.classList.remove('hidden');
+                }
+            };
+            
+            const showMessage = (element, message, isError = true) => {
+                element.textContent = message;
+                element.classList.remove('hidden');
+                // Hide the message after 5 seconds
+                setTimeout(() => {
+                    element.classList.add('hidden');
+                }, 5000);
+            };
+
+            const clearMessages = () => {
+                errorMessageDiv.classList.add('hidden');
+                successMessageDiv.classList.add('hidden');
+            }
+
+            const getFirebaseErrorMessage = (errorCode) => {
+                switch (errorCode) {
+                    case 'auth/invalid-email':
+                        return 'Please enter a valid email address.';
+                    case 'auth/user-not-found':
+                    case 'auth/wrong-password':
+                    case 'auth/invalid-credential': // Catches general invalid login attempts
+                        return 'Invalid email or password.';
+                    case 'auth/email-already-in-use':
+                        return 'This email is already registered.';
+                    case 'auth/weak-password':
+                        return 'Password should be at least 6 characters.';
+                    case 'auth/popup-closed-by-user':
+                        return 'Google Sign-in was cancelled.';
+                    case 'auth/operation-not-allowed': // Crucial for catching disabled providers
+                        return 'Error: This sign-in method is not enabled in your Firebase project.';
+                    case 'auth/network-request-failed':
+                        return 'Network error. Please check your internet connection and try again.';
+                    default:
+                        console.error("Unhandled Firebase Auth Error:", errorCode); // Log the unknown error
+                        return `An unexpected error occurred. (${errorCode})`;
+                }
+            }
+
+
+            // --- Authentication State Observer ---
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    // User is signed in
+                    profilePic.src = user.photoURL || `https://placehold.co/128x128/374151/E5E7EB?text=${user.email.charAt(0).toUpperCase()}`;
+                    userDisplayName.textContent = user.displayName || 'No Display Name';
+                    userEmail.textContent = user.email;
+                    showPage('profile');
+                } else {
+                    // User is signed out
+                    showPage('auth');
+                }
+            });
+
+
+            // --- Event Listeners ---
+            signupBtn.addEventListener('click', async () => {
+                clearMessages();
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                
+                if (!email || !password) {
+                    showMessage(errorMessageDiv, "Please enter both email and password.");
+                    return;
+                }
+
+                try {
+                    await createUserWithEmailAndPassword(auth, email, password);
+                    // Auth observer will handle UI change
+                } catch (error) {
+                    console.error("Full Signup Error Object:", error); // Log the full error
+                    showMessage(errorMessageDiv, getFirebaseErrorMessage(error.code));
+                }
+            });
+
+            loginBtn.addEventListener('click', async () => {
+                clearMessages();
+                const email = emailInput.value;
+                const password = passwordInput.value;
+                
+                if (!email || !password) {
+                    showMessage(errorMessageDiv, "Please enter both email and password.");
+                    return;
+                }
+
+                try {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    // Auth observer will handle UI change
+                } catch (error) {
+                    console.error("Full Login Error Object:", error); // Log the full error
+                    showMessage(errorMessageDiv, getFirebaseErrorMessage(error.code));
+                }
+            });
+
+            googleSigninBtn.addEventListener('click', async () => {
+                clearMessages();
+                try {
+                    await signInWithPopup(auth, provider);
+                    // Auth observer will handle UI change
+                } catch (error) {
+                    console.error("Full Google Signin Error Object:", error); // Log the full error
+                    showMessage(errorMessageDiv, getFirebaseErrorMessage(error.code));
+                }
+            });
+
+            logoutBtn.addEventListener('click', async () => {
+                try {
+                    await signOut(auth);
+                    // Auth observer will handle UI change
+                } catch (error) {
+                    console.error("Logout Error:", error.code, error.message);
+                    showMessage(errorMessageDiv, "Failed to log out. Please try again.");
+                }
+            });
+
+            forgotPasswordLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                clearMessages();
+                const email = emailInput.value;
+                
+                if (!email) {
+                    showMessage(errorMessageDiv, "Please enter your email address to reset password.");
+                    return;
+                }
+
+                try {
+                    await sendPasswordResetEmail(auth, email);
+                    showMessage(successMessageDiv, "Password reset email sent! Check your inbox.", false);
+                } catch (error) {
+                    console.error("Password Reset Error:", error.code, error.message);
+                    showMessage(errorMessageDiv, getFirebaseErrorMessage(error.code));
+                }
+            });
+
+        } catch (error) {
+            console.error("Firebase Initialization Error:", error);
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const authSection = document.getElementById('auth-section');
+            const errorMessageDiv = document.getElementById('error-message');
+            
+            loadingSpinner.classList.add('hidden');
+            authSection.classList.remove('hidden');
+            errorMessageDiv.textContent = "Could not connect to Firebase. Please check the console for more details and ensure your Firebase configuration is correct.";
+            errorMessageDiv.classList.remove('hidden');
+
+            // Hide the form fields as they won't work
+            document.querySelector('#auth-section .space-y-4').classList.add('hidden');
+            document.querySelector('#auth-section .flex').classList.add('hidden');
+            document.querySelector('#auth-section .relative').classList.add('hidden');
+            document.querySelector('#google-signin-btn').classList.add('hidden');
+            document.getElementById('forgot-password-link').classList.add('hidden');
+        }
+
+    </script>
+</body>
+</html>
